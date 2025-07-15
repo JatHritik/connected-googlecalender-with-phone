@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Calendar Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #00ff88;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .auth-section {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .auth-button {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+        }
+
+        .auth-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .calendar-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #4285f4;
+        }
+
+        .calendar-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .event-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid #4285f4;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .event-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .event-item.new-event {
+            animation: slideIn 0.5s ease-out;
+            border-left-color: #00ff88;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .event-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .event-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .event-description {
+            color: #888;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4285f4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .refresh-btn {
+            background: #34a853;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: #2d8f47;
+            transform: translateY(-1px);
+        }
+
+        .sync-info {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f44336;
+        }
+
+        .webhook-status {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        .webhook-status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .calendar-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Google Calendar</h1>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">connected</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="authSection" class="auth-section">
+                <h2>Connect to Google Calendar</h2>
+                <p style="margin: 20px 0; color: #666;">Sign in to view and manage your calendar events in real-time</p>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 10px; margin: 20px 0; text-align: left;">
+                    <strong>⚠️ Setup Required:</strong><br>
+                    <ol style="margin: 10px 0; text-align: left;">
+                        <li>Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a></li>
+                        <li>Create/Select a project</li>
+                        <li>Enable Calendar API</li>
+                        <li>Create OAuth2 credentials</li>
+                        <li>Add this origin to authorized JavaScript origins: <code id="currentOrigin">http://127.0.0.1:5500</code></li>
+                        <li>Update CLIENT_ID and API_KEY in code</li>
+                    </ol>
+                </div>
+                
+                <button class="auth-button" onclick="signIn()">
+                    🔐 Sign in with Google
+                </button>
+            </div>
+
+                            <div id="calendarSection" style="display: none;">
+                <div class="controls">
+                    <div class="sync-info">
+                        <div>Last sync: <span id="lastSync">Never</span></div>
+                        <div class="webhook-status" id="webhookStatus">Webhook: Not configured</div>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="refresh-btn" onclick="createTestEvent()">
+                            ➕ Create Test Event
+                        </button>
+                        <button class="refresh-btn" onclick="refreshCalendars()">
+                            🔄 Refresh
+                        </button>
+                        <button class="refresh-btn" onclick="togglePolling()" id="togglePollingBtn">
+                            ⏸️ Pause Polling
+                        </button>
+                          <button onclick="createNewEvent()">➕ Create New Event</button>
+                    </div>
+                </div>
+                
+                <div class="activity-log" id="activityLog" style="background: #f0f0f0; padding: 15px; border-radius: 10px; margin-bottom: 20px; max-height: 150px; overflow-y: auto;">
+                    <strong>📊 Real-time Activity Log:</strong>
+                    <div id="logContent">App initialized...</div>
+                </div>
+
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <div>Loading calendars...</div>
+                </div>
+
+                <div id="calendarsContainer" class="calendar-grid"></div>
+            </div>
+        </div>
+    </div>
+
+     <script>
+    const CLIENT_ID = '726486132022-jf9a7vkidkkb6i86rk1v2744vmahnslg.apps.googleusercontent.com';
+    const API_KEY = 'AIzaSyAI2FCaoJtzZoScJMbz2swwZ3968zcVNLc';
+    const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+    const SCOPES = 'https://www.googleapis.com/auth/calendar';
+    const WEBHOOK_SERVER_BASE = 'https://your-ngrok-or-render-url.com';
+
+    let gapi, tokenClient, pollingInterval = null, webhookChannel = null;
+    let calendars = [], events = new Map();
+    let pollingActive = true;
+
+    async function initializeApp() {
+      await loadGoogleAPI();
+      await gapi.load('client', initializeGapiClient);
+      await gapi.load('auth2', initializeGoogleAuth);
+      checkSignInStatus();
+    }
+
+    async function loadGoogleAPI() {
+      return new Promise(resolve => {
+        const script = document.createElement('script');
+        script.src = 'https://apis.google.com/js/api.js';
+        script.onload = () => {
+          gapi = window.gapi;
+          resolve();
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function initializeGapiClient() {
+      await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
+    }
+
+    function initializeGoogleAuth() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: handleAuthResponse
+      });
+    }
+
+    function signIn() {
+      tokenClient.requestAccessToken();
+    }
+
+    function handleAuthResponse(response) {
+      if (response.error) return alert('Authentication failed');
+      const token = {
+        access_token: response.access_token,
+        expires_at: Date.now() + (response.expires_in * 1000)
+      };
+      sessionStorage.setItem('google_token', JSON.stringify(token));
+      gapi.client.setToken(token);
+      document.getElementById('calendarSection').style.display = 'block';
+      setupWebhooks();
+      refreshCalendars();
+      startSmartPolling();
+    }
+
+    async function setupWebhooks() {
+      try {
+        if (webhookChannel) return;
+        const response = await gapi.client.calendar.events.watch({
+          calendarId: 'primary',
+          resource: {
+            id: generateChannelId(),
+            type: 'web_hook',
+            address: `${WEBHOOK_SERVER_BASE}/webhook/calendar`,
+            params: { ttl: 3600 }
+          }
+        });
+        webhookChannel = response.result;
+        document.getElementById('webhookStatus').textContent = 'Webhook: Active';
+      } catch (e) {
+        console.warn(e);
+        document.getElementById('webhookStatus').textContent = 'Webhook: Fallback to polling';
+      }
+    }
+
+    function generateChannelId() {
+      return 'channel-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function startSmartPolling() {
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(() => {
+        const token = getStoredToken();
+        if (!token || isTokenExpired(token)) return;
+        fetch(`${WEBHOOK_SERVER_BASE}/webhook/ping`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.triggered) {
+              refreshCalendars();
+              document.getElementById('webhookStatus').textContent = '🔔 Webhook event detected';
+            }
+          });
+      }, 5000);
+    }
+
+    async function refreshCalendars() {
+      const token = getStoredToken();
+      if (!token || isTokenExpired(token)) return await refreshToken();
+      const list = await gapi.client.calendar.calendarList.list();
+      calendars = list.result.items || [];
+      events.clear();
+
+      for (const calendar of calendars) {
+        const res = await gapi.client.calendar.events.list({
+          calendarId: calendar.id,
+          timeMin: new Date().toISOString(),
+          singleEvents: true,
+          maxResults: 10,
+          orderBy: 'startTime'
+        });
+        events.set(calendar.id, res.result.items || []);
+      }
+
+      renderCalendars();
+      document.getElementById('lastSync').textContent = new Date().toLocaleTimeString();
+    }
+
+    function renderCalendars() {
+      const container = document.getElementById('calendarsContainer');
+      container.innerHTML = '';
+      calendars.forEach(calendar => {
+        const calDiv = document.createElement('div');
+        calDiv.innerHTML = `<h3>${calendar.summary}</h3>`;
+        const evts = events.get(calendar.id) || [];
+        if (evts.length === 0) {
+          calDiv.innerHTML += '<p>No events found.</p>';
+        } else {
+          evts.forEach(event => {
+            const div = document.createElement('div');
+            div.className = 'event-item';
+            div.innerHTML = `<strong>${event.summary || 'No Title'}</strong><br>${formatEventTime(event)} <button data-calendar-id="${calendar.id}" data-event-id="${event.id}" onclick="deleteEventFromButton(this)">🗑️ Delete</button>`;
+            calDiv.appendChild(div);
+          });
+        }
+        container.appendChild(calDiv);
+      });
+    }
+
+    function deleteEventFromButton(button) {
+      const calendarId = button.getAttribute('data-calendar-id');
+      const eventId = button.getAttribute('data-event-id');
+      deleteEvent(calendarId, eventId);
+    }
+
+    function formatEventTime(event) {
+      const start = event.start.dateTime || event.start.date;
+      return new Date(start).toLocaleString();
+    }
+
+    function createTestEvent() {
+      const now = new Date();
+      const end = new Date(now.getTime() + 3600000);
+      const event = {
+        summary: 'Test Event',
+        description: 'Created for testing',
+        start: { dateTime: now.toISOString(), timeZone: 'UTC' },
+        end: { dateTime: end.toISOString(), timeZone: 'UTC' }
+      };
+      gapi.client.calendar.events.insert({ calendarId: 'primary', resource: event })
+        .then(() => refreshCalendars());
+    }
+
+    function createNewEvent() {
+      const title = prompt("Event Title:", "New Event");
+      if (!title) return;
+      const now = new Date();
+      const end = new Date(now.getTime() + 3600000);
+      const event = {
+        summary: title,
+        start: { dateTime: now.toISOString(), timeZone: 'UTC' },
+        end: { dateTime: end.toISOString(), timeZone: 'UTC' }
+      };
+      gapi.client.calendar.events.insert({ calendarId: 'primary', resource: event })
+        .then(() => refreshCalendars());
+    }
+
+    function deleteEvent(calendarId, eventId) {
+  if (!calendarId || !eventId) return alert('Missing calendar or event ID');
+  if (!confirm("Are you sure you want to delete this event?")) return;
+
+  gapi.client.calendar.events.delete({ calendarId, eventId })
+    .then(() => {
+      refreshCalendars();
+    })
+    .catch(err => {
+      console.error('Delete error:', err);
+      const errorMessage = err?.result?.error?.message || 'Unknown error';
+      alert('Failed to delete event: ' + errorMessage);
+    });
+}
+
+
+    function togglePolling() {
+      pollingActive = !pollingActive;
+      const btn = document.getElementById('togglePollingBtn');
+      if (pollingActive) {
+        btn.textContent = '⏸️ Pause Polling';
+        startSmartPolling();
+      } else {
+        btn.textContent = '▶️ Resume Polling';
+        clearInterval(pollingInterval);
+      }
+    }
+
+    function getStoredToken() {
+      const stored = sessionStorage.getItem('google_token');
+      return stored ? JSON.parse(stored) : null;
+    }
+
+    function isTokenExpired(token) {
+      return Date.now() >= token.expires_at - 60000;
+    }
+
+    async function refreshToken() {
+      return new Promise((resolve, reject) => {
+        tokenClient.callback = (response) => {
+          if (response.error) {
+            reject(response.error);
+            return;
+          }
+          const token = {
+            access_token: response.access_token,
+            expires_at: Date.now() + (response.expires_in * 1000)
+          };
+          sessionStorage.setItem('google_token', JSON.stringify(token));
+          gapi.client.setToken(token);
+          resolve();
+        };
+        tokenClient.requestAccessToken();
+      });
+    }
+
+    window.addEventListener('load', initializeApp);
+    window.addEventListener('beforeunload', () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (webhookChannel) {
+        gapi.client.calendar.channels.stop({ resource: webhookChannel }).catch(console.error);
+      }
+    });
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
